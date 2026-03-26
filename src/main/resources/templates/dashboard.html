@@ -5,27 +5,49 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>DART 금융 대시보드</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body class="bg-light">
     <div class="container mt-5">
         <div class="card shadow-sm">
-            <div class="card-body">
-                <h2 class="card-title mb-4">📊 공기업 IT 심사역 대시보드</h2>
+                <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 class="card-title mb-0">📊 공기업 IT 심사역 대시보드</h2>
+                    <a href="/download/excel" class="btn btn-success text-nowrap">💾 엑셀 다운로드</a>
+                </div>
                 <p class="text-muted">DART API 및 MySQL DB와 연동된 실시간 기업 목록입니다.</p>
                 
+                <form action="/search" method="post" class="mb-4 d-flex gap-2">
+                    <input type="text" name="corpCode" class="form-control" placeholder="DART 고유번호 8자리 입력 (예: 카카오 00258801)" maxlength="8" required>
+                    <button type="submit" class="btn btn-primary text-nowrap">기업 추가</button>
+                </form>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <canvas id="financeChart" height="100"></canvas>
+                    </div>
+                </div>
+
                 <table class="table table-striped table-hover border text-center">
                     <thead class="table-dark">
                         <tr>
                             <th>DART 고유번호</th>
                             <th>기업명</th>
                             <th>주식 종목코드</th>
-                        </tr>
+                            <th>매출액 (23년)</th> <th>영업이익 (23년)</th> <th>관리</th>
                     </thead>
                     <tbody>
                         <tr th:each="company : ${companies}">
-                            <td th:text="${company.corpCode}">00000000</td>
-                            <td th:text="${company.corpName}" class="fw-bold">테스트기업</td>
-                            <td th:text="${company.stockCode}">000000</td>
+                            <td class="align-middle" th:text="${company.corpCode}">00000000</td>
+                            <td class="align-middle fw-bold" th:text="${company.corpName}">테스트기업</td>
+                            <td class="align-middle" th:text="${company.stockCode}">000000</td>
+                            <td class="align-middle" th:text="${company.revenue}">데이터 없음</td>
+                            <td class="align-middle text-primary fw-bold" th:text="${company.operatingProfit}">데이터 없음</td>
+                            <td>
+                                <form th:action="@{/delete/{id}(id=${company.corpCode})}" method="post" onsubmit="return confirm('정말 삭제하시겠습니까?');">
+                                    <button type="submit" class="btn btn-danger btn-sm">삭제</button>
+                                </form>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -33,5 +55,57 @@
             </div>
         </div>
     </div>
+    <script th:inline="javascript">
+        // 1. 스프링 서버에서 보낸 기업 목록 데이터를 자바스크립트 배열로 그대로 가져옴
+        const companies = /*[[${companies}]]*/ [];
+
+        // 2. 차트에 쓸 X축(기업명)과 Y축(매출액, 영업이익) 데이터를 담을 빈 상자를 만듦
+        const labels = [];
+        const revenueData = [];
+        const profitData = [];
+
+        // 3. 기업 수만큼 반복하면서 상자에 데이터를 채워 넣음
+        companies.forEach(company => {
+            labels.push(company.corpName);
+
+            // '000억 원' 이라는 글자에서 숫자만 쏙 뽑아냄 (데이터 없으면 0으로 처리)
+            const revNum = company.revenue.includes('억') ? parseInt(company.revenue.replace(/[^0-9-]/g, '')) : 0;
+            const profNum = company.operatingProfit.includes('억') ? parseInt(company.operatingProfit.replace(/[^0-9-]/g, '')) : 0;
+
+            revenueData.push(revNum);
+            profitData.push(profNum);
+        });
+
+        // 4. Chart.js를 이용해 본격적으로 막대그래프를 그림
+        const ctx = document.getElementById('financeChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'bar', // 막대그래프
+            data: {
+                labels: labels, // X축: 기업명
+                datasets: [
+                    {
+                        label: '매출액 (억 원)',
+                        data: revenueData,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)', // 파란색
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    },
+                    {
+                        label: '영업이익 (억 원)',
+                        data: profitData,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)', // 빨간색
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true } // Y축은 0부터 시작
+                }
+            }
+        });
+    </script>
 </body>
 </html>

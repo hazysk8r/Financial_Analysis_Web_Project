@@ -22,4 +22,8 @@ public class Company {
 
     @Column(name = "stock_code", length = 6)
     private String stockCode; // 주식 종목코드 (예: 005930)
+
+    private String revenue;         // 매출액
+    
+    private String operatingProfit; // 영업이익
 }

@@ -22,6 +22,7 @@ public class DartApiService {
 
     public void fetchAndSaveCompany(String corpCode) {
         String url = "https://opendart.fss.or.kr/api/company.json?crtfc_key=" + apiKey + "&corp_code=" + corpCode;
+        String financeUrl = "https://opendart.fss.or.kr/api/fnlttSinglAcnt.json?crtfc_key=" + apiKey + "&corp_code=" + corpCode + "&bsns_year=2023&reprt_code=11011";
 
         RestTemplate restTemplate = new RestTemplate();
         ObjectMapper objectMapper = new ObjectMapper(); // 💡 텍스트를 JSON으로 수동 변환해 줄 도구
@@ -42,8 +43,44 @@ public class DartApiService {
                     company.setStockCode(response.get("stock_code").asText());
                 }
 
+                company.setRevenue("데이터 없음");
+                company.setOperatingProfit("데이터 없음");
+
+                try {
+                    String finJsonString = restTemplate.getForObject(financeUrl, String.class);
+                    JsonNode finResponse = objectMapper.readTree(finJsonString);
+
+                    if (finResponse != null && "000".equals(finResponse.get("status").asText())) {
+                        JsonNode list = finResponse.get("list");
+                        for (JsonNode item : list) {
+                            String accountNm = item.get("account_nm").asText();
+                            
+                            // 1. 쉼표(,) 제거 및 양쪽 공백 제거
+                            String amountStr = item.get("thstrm_amount").asText().replace(",", "").trim();
+
+                            // 2. 빈칸이거나 하이픈(-)이 아닐 때만 계산하도록 안전장치 추가
+                            if (!amountStr.isEmpty() && !amountStr.equals("-")) {
+                                try {
+                                    long amount = Long.parseLong(amountStr);
+                                    String formattedAmount = (amount / 100000000) + "억 원";
+
+                                    if (accountNm.contains("매출액")) {
+                                        company.setRevenue(formattedAmount);
+                                    } else if (accountNm.contains("영업이익")) {
+                                        company.setOperatingProfit(formattedAmount);
+                                    }
+                                } catch (NumberFormatException e) {
+                                    // 숫자로 변환할 수 없는 이상한 문자가 와도 무시하고 넘어감
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    System.out.println("재무 데이터 수집 실패 (상장사가 아니거나 데이터가 없을 수 있습니다.)");
+                }
+
                 companyRepository.save(company);
-                System.out.println("DB 저장 성공: " + company.getCorpName());
+                System.out.println("DB 저장 성공 (재무 데이터 포함): " + company.getCorpName());
             } else {
                 System.out.println("DART API 호출 실패 또는 응답 오류");
             }
