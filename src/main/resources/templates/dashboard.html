@@ -13,19 +13,42 @@
                 <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h2 class="card-title mb-0">📊 공기업 IT 심사역 대시보드</h2>
-                    <a href="/download/excel" class="btn btn-success text-nowrap">💾 엑셀 다운로드</a>
+                    
+                    <div class="d-flex gap-2">
+                        <a href="/logout" class="btn btn-outline-secondary text-nowrap">🚪 로그아웃</a>
+                        
+                        <form action="/update-all" method="post" onsubmit="return confirm('모든 기업의 데이터를 최신화하시겠습니까?');">
+                            <button type="submit" class="btn btn-warning text-nowrap">🔄 전체 업데이트</button>
+                        </form>
+                        <a href="/download/excel" class="btn btn-success text-nowrap">💾 엑셀 다운로드</a>
+                    </div>
                 </div>
                 <p class="text-muted">DART API 및 MySQL DB와 연동된 실시간 기업 목록입니다.</p>
-                
-                <form action="/search" method="post" class="mb-4 d-flex gap-2">
-                    <input type="text" name="corpCode" class="form-control" placeholder="DART 고유번호 8자리 입력 (예: 카카오 00258801)" maxlength="8" required>
-                    <button type="submit" class="btn btn-primary text-nowrap">기업 추가</button>
-                </form>
+
+                <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show shadow-sm" role="alert">
+                    <strong th:text="${errorMessage}">에러 메시지</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <form action="/add" method="post" class="d-flex align-items-center">
+                            <input type="text" name="keyword" class="form-control form-control-lg me-3" 
+                                   placeholder="✨ 종목코드(예: 005930) 또는 기업명(예: 카카오) 입력" required>
+                            <button type="submit" class="btn btn-primary btn-lg text-nowrap fw-bold">➕ 기업 추가</button>
+                        </form>
+                    </div>
+                </div>
 
                 <div class="card shadow-sm mb-4">
                     <div class="card-body">
                         <canvas id="financeChart" height="100"></canvas>
-                    </div>
+
+                <div class="d-flex justify-content-end mb-3">
+                    <form action="/" method="get" class="d-flex w-50">
+                        <input type="text" name="keyword" th:value="${keyword}" class="form-control me-2" placeholder="🔍 목록에서 기업명 검색...">
+                        <button type="submit" class="btn btn-secondary text-nowrap">검색</button>
+                    </form>
                 </div>
 
                 <table class="table table-striped table-hover border text-center">
@@ -51,6 +74,25 @@
                         </tr>
                     </tbody>
                 </table>
+
+                <nav th:if="${page.totalPages > 0}" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        
+                        <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                            <a class="page-link" th:href="@{/(page=${page.number - 1}, keyword=${keyword})}">이전</a>
+                        </li>
+                        
+                        <li class="page-item" th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}" 
+                            th:classappend="${page.number == i} ? 'active'">
+                            <a class="page-link" th:href="@{/(page=${i}, keyword=${keyword})}" th:text="${i + 1}">1</a>
+                        </li>
+                        
+                        <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                            <a class="page-link" th:href="@{/(page=${page.number + 1}, keyword=${keyword})}">다음</a>
+                        </li>
+                        
+                    </ul>
+                </nav>
                 
             </div>
         </div>
